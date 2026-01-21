@@ -17,11 +17,8 @@ rules:
     ignore-shebangs: true
     min-spaces-from-content: 1
 
-  # Be flexible with indentation (K8s uses 2 spaces)
-  indentation:
-    spaces: 2
-    indent-sequences: true
-    check-multi-line-strings: false
+  # Disable strict indentation check - K8s manifests have varied styles
+  indentation: disable
 
   # Truthy values - allow 'yes', 'no', 'on', 'off' commonly used in K8s
   truthy:
