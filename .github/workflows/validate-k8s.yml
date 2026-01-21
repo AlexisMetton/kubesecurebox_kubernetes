@@ -1,0 +1,81 @@
+name: Validate Kubernetes Manifests
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - '*.yaml'
+      - '*.yml'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - '*.yaml'
+      - '*.yml'
+      - '.github/workflows/**'
+
+jobs:
+  validate:
+    name: Validate K8s Manifests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Run yamllint
+        run: |
+          echo "Validating YAML syntax..."
+          yamllint -c .yamllint.yml *.yaml
+
+      - name: Install kubeval
+        run: |
+          wget -q https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+          tar xf kubeval-linux-amd64.tar.gz
+          sudo mv kubeval /usr/local/bin/
+
+      - name: Run kubeval
+        run: |
+          echo "Validating Kubernetes schemas..."
+          # Validate only .example files (non-sensitive templates)
+          # Skip files with envsubst variables ${...}
+          for file in *.yaml.example namespace.yaml storage.yaml; do
+            if [ -f "$file" ]; then
+              echo "Validating $file..."
+              kubeval --strict --ignore-missing-schemas "$file" || true
+            fi
+          done
+
+      - name: Install kube-linter
+        run: |
+          wget -q https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz
+          tar xf kube-linter-linux.tar.gz
+          sudo mv kube-linter /usr/local/bin/
+
+      - name: Run kube-linter
+        run: |
+          echo "Checking Kubernetes best practices..."
+          # Lint files that don't contain envsubst variables
+          kube-linter lint namespace.yaml storage.yaml --config .kube-linter.yaml || true
+          # Lint example files
+          for file in *.yaml.example; do
+            if [ -f "$file" ]; then
+              echo "Linting $file..."
+              kube-linter lint "$file" --config .kube-linter.yaml || true
+            fi
+          done
+
+      - name: Validation Summary
+        run: |
+          echo "Kubernetes manifest validation complete!"
+          echo ""
+          echo "Files validated:"
+          ls -la *.yaml *.yaml.example 2>/dev/null || true

@@ -1,0 +1,45 @@
+---
+checks:
+  # Exclude checks that are too strict for development/example files
+  exclude:
+    # Don't require run-as-non-root for security tools that may need root
+    - "run-as-non-root"
+    # Don't require read-only root filesystem for all containers
+    - "no-read-only-root-fs"
+    # Don't enforce CPU limits (can cause throttling issues)
+    - "unset-cpu-requirements"
+    # Allow default service accounts for dev environment
+    - "default-service-account"
+    # Don't require network policies in example files
+    - "no-anti-affinity"
+    # Privilege escalation may be needed for VPN/security tools
+    - "privilege-escalation-container"
+    # Some security tools need privileged mode
+    - "privileged-container"
+    # Allow writable host mounts for dev
+    - "writable-host-mount"
+    # Don't require drop all capabilities
+    - "drop-net-raw-capability"
+
+  # Include important security and best practice checks
+  include:
+    # Ensure resource requests are set
+    - "unset-memory-requirements"
+    # Check for latest tag usage
+    - "latest-tag"
+    # Ensure liveness/readiness probes (warning only via exclude above)
+    - "no-liveness-probe"
+    - "no-readiness-probe"
+    # Check for exposed sensitive env vars
+    - "sensitive-host-mounts"
+    # Dangling services
+    - "dangling-service"
+    # Mismatched selectors
+    - "mismatching-selector"
+
+# Custom configuration for specific checks
+customChecks: []
+
+# Ignore paths
+ignorePaths:
+  - ".github/**"

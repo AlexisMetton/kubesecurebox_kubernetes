@@ -1,0 +1,60 @@
+---
+extends: default
+
+rules:
+  # Allow long lines for certificates, base64 encoded values, and URLs
+  line-length:
+    max: 200
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+
+  # Kubernetes manifests often use multiple documents
+  document-start: disable
+
+  # Allow comments without space (common in K8s manifests)
+  comments:
+    require-starting-space: true
+    ignore-shebangs: true
+    min-spaces-from-content: 1
+
+  # Be flexible with indentation (K8s uses 2 spaces)
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+
+  # Truthy values - allow 'yes', 'no', 'on', 'off' commonly used in K8s
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+
+  # Allow empty values (common in K8s for optional fields)
+  empty-values:
+    forbid-in-block-mappings: false
+    forbid-in-flow-mappings: false
+
+  # Trailing spaces - be strict
+  trailing-spaces: enable
+
+  # New line at end of file
+  new-line-at-end-of-file: enable
+
+  # Brackets spacing
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+
+  # Colons spacing
+  colons:
+    max-spaces-before: 0
+    max-spaces-after: 1
+
+  # Commas spacing
+  commas:
+    max-spaces-before: 0
+    min-spaces-after: 1
+    max-spaces-after: 1
+
+# Ignore certain files
+ignore: |
+  .github/
+  node_modules/
