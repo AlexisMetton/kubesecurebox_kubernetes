@@ -1,0 +1,70 @@
+# ===================
+# Fichiers sensibles
+# ===================
+
+# Variables d'environnement avec secrets
+k8s.env
+*.env
+!*.env.example
+
+# Secrets Kubernetes
+secret.yaml
+*-secret.yaml
+*-secrets.yaml
+
+# Configuration VPN (contient clés et certificats)
+vpn-config.yaml
+
+# Configuration avec données sensibles (IPs, mots de passe)
+configmap.yaml
+
+# ===================
+# Fichiers générés
+# ===================
+
+# Logs
+*.log
+logs/
+
+# Fichiers temporaires
+*.tmp
+*.temp
+.cache/
+
+# ===================
+# IDE et OS
+# ===================
+
+# VSCode / Cursor
+.vscode/
+.cursor/
+*.code-workspace
+
+# JetBrains
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ===================
+# Kubernetes
+# ===================
+
+# Fichiers kubeconfig
+kubeconfig
+kubeconfig.yaml
+*.kubeconfig
+
+# Fichiers de state Helm
+.helmignore
+charts/
+
+# ===================
+# Docker
+# ===================
+
+# Docker credentials
+.docker/
+docker-config.json

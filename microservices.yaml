@@ -1,0 +1,731 @@
+# API Gateway Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: kubesecurebox
+  labels:
+    app: api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: api-gateway
+        image: ${DOCKER_REGISTRY}/kubesecurebox/api-gateway:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: REDIS_URL
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: DATABASE_URL
+        volumeMounts:
+        - name: shared-volume
+          mountPath: /app/shared
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: shared-volume
+        persistentVolumeClaim:
+          claimName: shared-pvc
+---
+# API Gateway Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: api-gateway
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP
+---
+# VPN Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vpn-service
+  namespace: kubesecurebox
+  labels:
+    app: vpn-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vpn-service
+  template:
+    metadata:
+      labels:
+        app: vpn-service
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: vpn-service
+        image: ${DOCKER_REGISTRY}/kubesecurebox/vpn-service:latest
+        ports:
+        - containerPort: 8080
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - NET_ADMIN
+            - SYS_MODULE
+        volumeMounts:
+        - name: vpn-config
+          mountPath: /app/protonvpn.ovpn
+          subPath: protonvpn.ovpn
+        - name: dev-net-tun
+          mountPath: /dev/net/tun
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: vpn-config
+        configMap:
+          name: vpn-config
+      - name: dev-net-tun
+        hostPath:
+          path: /dev/net/tun
+          type: CharDevice
+---
+# VPN Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vpn-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: vpn-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP
+---
+# Nmap Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nmap-service
+  namespace: kubesecurebox
+  labels:
+    app: nmap-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nmap-service
+  template:
+    metadata:
+      labels:
+        app: nmap-service
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: nmap-service
+        image: ${DOCKER_REGISTRY}/kubesecurebox/nmap-service:latest
+        ports:
+        - containerPort: 8001
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: REDIS_URL
+        volumeMounts:
+        - name: nmap-results
+          mountPath: /app/results
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: nmap-results
+        persistentVolumeClaim:
+          claimName: nmap-results-pvc
+---
+# Nmap Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nmap-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: nmap-service
+  ports:
+  - port: 8001
+    targetPort: 8001
+  type: ClusterIP
+---
+# Hydra Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hydra-service
+  namespace: kubesecurebox
+  labels:
+    app: hydra-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hydra-service
+  template:
+    metadata:
+      labels:
+        app: hydra-service
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: hydra-service
+        image: ${DOCKER_REGISTRY}/kubesecurebox/hydra-service:latest
+        ports:
+        - containerPort: 8002
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: REDIS_URL
+        volumeMounts:
+        - name: hydra-results
+          mountPath: /app/results
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: hydra-results
+        persistentVolumeClaim:
+          claimName: hydra-results-pvc
+---
+# Hydra Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: hydra-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: hydra-service
+  ports:
+  - port: 8002
+    targetPort: 8002
+  type: ClusterIP
+---
+# SQLMap Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sqlmap-service
+  namespace: kubesecurebox
+  labels:
+    app: sqlmap-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sqlmap-service
+  template:
+    metadata:
+      labels:
+        app: sqlmap-service
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: sqlmap-service
+        image: ${DOCKER_REGISTRY}/kubesecurebox/sqlmap-service:latest
+        ports:
+        - containerPort: 8003
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: REDIS_URL
+        volumeMounts:
+        - name: sqlmap-results
+          mountPath: /app/results
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: sqlmap-results
+        persistentVolumeClaim:
+          claimName: sqlmap-results-pvc
+---
+# SQLMap Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: sqlmap-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: sqlmap-service
+  ports:
+  - port: 8003
+    targetPort: 8003
+  type: ClusterIP
+---
+# John Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: john-service
+  namespace: kubesecurebox
+  labels:
+    app: john-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: john-service
+  template:
+    metadata:
+      labels:
+        app: john-service
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: john-service
+        image: ${DOCKER_REGISTRY}/kubesecurebox/john-service:latest
+        ports:
+        - containerPort: 8004
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: REDIS_URL
+        volumeMounts:
+        - name: john-results
+          mountPath: /app/results
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: john-results
+        persistentVolumeClaim:
+          claimName: john-results-pvc
+---
+# John Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: john-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: john-service
+  ports:
+  - port: 8004
+    targetPort: 8004
+  type: ClusterIP
+---
+# Aircrack Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aircrack-service
+  namespace: kubesecurebox
+  labels:
+    app: aircrack-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aircrack-service
+  template:
+    metadata:
+      labels:
+        app: aircrack-service
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: aircrack-service
+        image: ${DOCKER_REGISTRY}/kubesecurebox/aircrack-service:latest
+        ports:
+        - containerPort: 8005
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: REDIS_URL
+        volumeMounts:
+        - name: aircrack-results
+          mountPath: /app/results
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: aircrack-results
+        persistentVolumeClaim:
+          claimName: aircrack-results-pvc
+---
+# Aircrack Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: aircrack-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: aircrack-service
+  ports:
+  - port: 8005
+    targetPort: 8005
+  type: ClusterIP
+---
+# Gobuster Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gobuster-service
+  namespace: kubesecurebox
+  labels:
+    app: gobuster-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gobuster-service
+  template:
+    metadata:
+      labels:
+        app: gobuster-service
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: gobuster-service
+        image: ${DOCKER_REGISTRY}/kubesecurebox/gobuster-service:latest
+        ports:
+        - containerPort: 8006
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: REDIS_URL
+        volumeMounts:
+        - name: gobuster-results
+          mountPath: /app/results
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: gobuster-results
+        persistentVolumeClaim:
+          claimName: gobuster-results-pvc
+---
+# Gobuster Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: gobuster-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: gobuster-service
+  ports:
+  - port: 8006
+    targetPort: 8006
+  type: ClusterIP
+---
+# Nikto Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nikto-service
+  namespace: kubesecurebox
+  labels:
+    app: nikto-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nikto-service
+  template:
+    metadata:
+      labels:
+        app: nikto-service
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: nikto-service
+        image: ${DOCKER_REGISTRY}/kubesecurebox/nikto-service:latest
+        ports:
+        - containerPort: 8007
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: REDIS_URL
+        volumeMounts:
+        - name: nikto-results
+          mountPath: /app/results
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: nikto-results
+        persistentVolumeClaim:
+          claimName: nikto-results-pvc
+---
+# Nikto Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nikto-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: nikto-service
+  ports:
+  - port: 8007
+    targetPort: 8007
+  type: ClusterIP
+---
+# WPScan Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wpscan-service
+  namespace: kubesecurebox
+  labels:
+    app: wpscan-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wpscan-service
+  template:
+    metadata:
+      labels:
+        app: wpscan-service
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: wpscan-service
+        image: ${DOCKER_REGISTRY}/kubesecurebox/wpscan-service:latest
+        ports:
+        - containerPort: 8008
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: REDIS_URL
+        volumeMounts:
+        - name: wpscan-results
+          mountPath: /app/results
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: wpscan-results
+        persistentVolumeClaim:
+          claimName: wpscan-results-pvc
+---
+# WPScan Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: wpscan-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: wpscan-service
+  ports:
+  - port: 8008
+    targetPort: 8008
+  type: ClusterIP
+---
+# Enum4linux Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enum4linux-service
+  namespace: kubesecurebox
+  labels:
+    app: enum4linux-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: enum4linux-service
+  template:
+    metadata:
+      labels:
+        app: enum4linux-service
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: enum4linux-service
+        image: ${DOCKER_REGISTRY}/kubesecurebox/enum4linux-service:latest
+        ports:
+        - containerPort: 8009
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: REDIS_URL
+        volumeMounts:
+        - name: enum4linux-results
+          mountPath: /app/results
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: enum4linux-results
+        persistentVolumeClaim:
+          claimName: enum4linux-results-pvc
+---
+# Enum4linux Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: enum4linux-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: enum4linux-service
+  ports:
+  - port: 8009
+    targetPort: 8009
+  type: ClusterIP
+---
+# CrackMapExec Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crackmapexec-service
+  namespace: kubesecurebox
+  labels:
+    app: crackmapexec-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crackmapexec-service
+  template:
+    metadata:
+      labels:
+        app: crackmapexec-service
+    spec:
+      imagePullSecrets:
+      - name: registry-secret
+      containers:
+      - name: crackmapexec-service
+        image: ${DOCKER_REGISTRY}/kubesecurebox/crackmapexec-service:latest
+        ports:
+        - containerPort: 8010
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kubesecurebox-config
+              key: REDIS_URL
+        volumeMounts:
+        - name: crackmapexec-results
+          mountPath: /app/results
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: crackmapexec-results
+        persistentVolumeClaim:
+          claimName: crackmapexec-results-pvc
+---
+# CrackMapExec Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: crackmapexec-service
+  namespace: kubesecurebox
+spec:
+  selector:
+    app: crackmapexec-service
+  ports:
+  - port: 8010
+    targetPort: 8010
+  type: ClusterIP

@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubesecurebox-config
+  namespace: kubesecurebox
+data:
+  # Configuration générale
+  REDIS_URL: "redis://redis-service:6379"
+  # IMPORTANT: Le mot de passe devrait être récupéré depuis un Secret, pas hardcodé ici
+  # Exemple avec références aux secrets :
+  # DATABASE_URL: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-service:5432/$(POSTGRES_DB)"
+  DATABASE_URL: "postgresql://user:password@postgres-service:5432/kubesecurebox"
+  
+  # Configuration API Gateway
+  API_GATEWAY_URL: "http://api-gateway-service:8000"
+  
+  # Configuration VPN
+  VPN_SERVICE_URL: "http://vpn-service:8080"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: kubesecurebox
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+    
+    http {
+        # Utilisez les noms DNS des services Kubernetes au lieu des IPs hardcodées
+        upstream frontend {
+            server frontend-service:3000;
+        }
+    
+        upstream api_gateway {
+            server api-gateway-service:8000;
+        }
+        
+        upstream vpn_service {
+            server vpn-service:8080;
+        }
+    
+        # Serveur HTTP principal
+        server {
+            listen 80;
+            server_name localhost;
+    
+            # Frontend React
+            location / {
+                proxy_pass http://frontend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+            }
+    
+            # API Gateway
+            location /api/ {
+                proxy_pass http://api_gateway/api/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+    
+            # VPN Service
+            location /api/vpn/ {
+                proxy_pass http://vpn_service/api/vpn/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+    
+            # WebSocket support
+            location /ws/ {
+                proxy_pass http://api_gateway;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+    
+            # Documentation API
+            location /docs {
+                proxy_pass http://api_gateway/docs;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+    
+            # Health check
+            location /health {
+                proxy_pass http://api_gateway/api/system/health;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+    
+            # Static files
+            location /static/ {
+                proxy_pass http://frontend;
+                expires 1y;
+                add_header Cache-Control "public, immutable";
+            }
+        }
+    }

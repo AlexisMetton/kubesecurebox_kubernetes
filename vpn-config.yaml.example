@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vpn-config
+  namespace: kubesecurebox
+data:
+  # Remplacez ce fichier par votre configuration OpenVPN
+  # Téléchargez-la depuis votre fournisseur VPN (ProtonVPN, NordVPN, etc.)
+  protonvpn.ovpn: |
+    client
+    dev tun
+    proto udp
+
+    # Remplacez par les serveurs de votre fournisseur VPN
+    remote your-vpn-server.example.com 1194
+
+    remote-random
+    resolv-retry infinite
+    nobind
+
+    cipher AES-256-GCM
+
+    setenv CLIENT_CERT 0
+    tun-mtu 1500
+    mssfix 0
+    persist-key
+    persist-tun
+
+    reneg-sec 0
+
+    remote-cert-tls server
+    auth-user-pass
+
+    script-security 2
+    up /etc/openvpn/update-resolv-conf
+    down /etc/openvpn/update-resolv-conf
+
+    <ca>
+    -----BEGIN CERTIFICATE-----
+    # Insérez ici le certificat CA de votre fournisseur VPN
+    # Ce certificat est généralement fourni dans le fichier .ovpn téléchargé
+    -----END CERTIFICATE-----
+    </ca>
+
+    <tls-crypt>
+    -----BEGIN OpenVPN Static key V1-----
+    # Insérez ici la clé TLS-crypt de votre fournisseur VPN
+    # Cette clé est généralement fournie dans le fichier .ovpn téléchargé
+    # NE JAMAIS PARTAGER CETTE CLÉ PUBLIQUEMENT
+    -----END OpenVPN Static key V1-----
+    </tls-crypt>
