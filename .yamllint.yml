@@ -20,6 +20,9 @@ rules:
   # Disable strict indentation check - K8s manifests have varied styles
   indentation: disable
 
+  # Allow blank lines between resources in K8s manifests
+  empty-lines: disable
+
   # Truthy values - allow 'yes', 'no', 'on', 'off' commonly used in K8s
   truthy:
     allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
